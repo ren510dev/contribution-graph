@@ -1,0 +1,85 @@
+export interface ContributionDay {
+  date: string;
+  count: number;
+  level: number;
+  weekday?: number;
+}
+
+const LEVEL_COUNT: Record<number, number> = {
+  0: 0,
+  1: 2,
+  2: 5,
+  3: 8,
+  4: 12,
+};
+
+export function parseContributionDays(html: string): ContributionDay[] {
+  const days: ContributionDay[] = [];
+  const cellRegex =
+    /<td[^>]*?data-date="(\d{4}-\d{2}-\d{2})"[^>]*?data-level="(\d)"[^>]*?>[\s\S]*?<\/td>/g;
+  const countRegex = /(\d+)\s+contribution/;
+
+  let match;
+  while ((match = cellRegex.exec(html)) !== null) {
+    const date = match[1];
+    const level = Number.parseInt(match[2], 10);
+    const cellHtml = match[0];
+
+    const countMatch = countRegex.exec(cellHtml);
+    const count = countMatch ? Number.parseInt(countMatch[1], 10) : (LEVEL_COUNT[level] ?? 0);
+
+    days.push({ date, count, level });
+  }
+  return days;
+}
+
+export function parseTotalContributions(html: string): number {
+  const m = /([\d,]+)\s+contributions?\s+in\s+/.exec(html);
+  return m ? Number.parseInt(m[1].replaceAll(",", ""), 10) : 0;
+}
+
+export function buildWeeks(days: ContributionDay[]) {
+  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  const weekMap = new Map<string, ContributionDay[]>();
+  for (const day of sorted) {
+    const d = new Date(day.date + "T00:00:00");
+    const wd = d.getDay();
+    const sun = new Date(d);
+    sun.setDate(sun.getDate() - wd);
+    const key = sun.toISOString().slice(0, 10);
+    if (!weekMap.has(key)) weekMap.set(key, []);
+    const week = weekMap.get(key);
+    if (week) week.push({ ...day, weekday: wd });
+  }
+  return [...weekMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, contributionDays]) => ({ contributionDays }));
+}
+
+export function buildMonths(days: ContributionDay[]) {
+  const names = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const seen = new Set<string>();
+  const months: { name: string; firstDay: string }[] = [];
+  for (const day of days) {
+    const d = new Date(day.date + "T00:00:00");
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      months.push({ name: names[d.getMonth()], firstDay: day.date });
+    }
+  }
+  return months;
+}

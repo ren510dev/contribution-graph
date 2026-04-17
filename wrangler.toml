@@ -1,0 +1,7 @@
+name = "contribution-graph"
+compatibility_date = "2026-04-18"
+main = "worker/index.ts"
+
+[assets]
+directory = "dist"
+not_found_handling = "single-page-application"

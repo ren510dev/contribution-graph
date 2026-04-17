@@ -1,0 +1,43 @@
+{
+  "name": "contribution-graph",
+  "version": "1.0.0",
+  "repository": "https://github.com/ren510dev/contribution-graph.git",
+  "author": "Ren Goto",
+  "private": false,
+  "type": "module",
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": "24.14.0"
+  },
+  "scripts": {
+    "dev": "rm -rf .wrangler && vite build && wrangler dev",
+    "dev:vite": "vite",
+    "build": "tsc -p tsconfig.app.json && vite build",
+    "preview": "vite build && wrangler dev",
+    "deploy": "pnpm build && wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.12.14",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260417.1",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.5.2",
+    "prettier": "^3.8.3",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.8.3",
+    "vite": "^6.4.2",
+    "wrangler": "^4.83.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd",
+      "sharp"
+    ]
+  }
+}
