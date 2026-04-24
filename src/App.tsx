@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react";
 import type { GitHubData, YearOption } from "./types";
+import logoSvg from "./assets/logo.svg";
+import logoHeroSvg from "./assets/logo-hero.svg";
 import SearchInput from "./components/SearchInput";
 import ProfileCard from "./components/ProfileCard";
 import ContributionGraph from "./components/ContributionGraph";
@@ -95,12 +97,7 @@ export default function App() {
               href="/"
               className="flex items-center gap-2.5 text-bordeaux-950 no-underline transition-opacity hover:opacity-70"
             >
-              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none">
-                <rect x="2" y="2" width="20" height="20" rx="4" fill="#220000" />
-                <rect x="5" y="14" width="3" height="5" rx="1" fill="#e8a5b5" />
-                <rect x="10" y="10" width="3" height="9" rx="1" fill="#c45a75" />
-                <rect x="15" y="6" width="3" height="13" rx="1" fill="#f0e8ea" />
-              </svg>
+              <img src={logoSvg} alt="Contribution Graph" className="h-6 w-6" />
               <span className="hidden text-sm font-semibold sm:inline">Contribution Graph</span>
             </a>
             <div className="w-full max-w-xs">
@@ -115,12 +112,7 @@ export default function App() {
           <div className="flex min-h-[80vh] flex-col items-center justify-center px-6 py-20">
             <div className="animate-fade-in-up text-center">
               <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-3xl bg-bordeaux-950 shadow-2xl shadow-bordeaux-950/20">
-                <svg className="h-10 w-10" viewBox="0 0 24 24" fill="none">
-                  <rect x="2" y="14" width="4" height="6" rx="1" fill="#e8a5b5" />
-                  <rect x="8" y="10" width="4" height="10" rx="1" fill="#d43d60" />
-                  <rect x="14" y="6" width="4" height="14" rx="1" fill="#e8a5b5" />
-                  <rect x="20" y="2" width="4" height="18" rx="1" fill="#fdb8c0" opacity="0.5" />
-                </svg>
+                <img src={logoHeroSvg} alt="Contribution Graph" className="h-10 w-10" />
               </div>
 
               <h1 className="text-4xl font-bold tracking-tight text-[#6b0f2e] sm:text-5xl">
