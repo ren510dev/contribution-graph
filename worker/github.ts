@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { parseContributionDays, parseTotalContributions, buildWeeks, buildMonths } from "./parse";
+import { parseContributionDays, parseTotalContributions, buildWeeks, buildMonths, parseContributedSection } from "./parse";
 import type { GitHubProfile, GitHubEvent } from "./types";
 
 function availableYears(createdAt: string) {
@@ -11,192 +11,222 @@ function availableYears(createdAt: string) {
   });
 }
 
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+interface ActivityRepo {
+  name: string;
+  url: string;
+  date: string;
 }
 
-function formatEvent(e: GitHubEvent) {
-  const repo = e.repo.name;
-  const time = e.created_at;
-  const p = e.payload;
-  const repoUrl = `https://github.com/${repo}`;
+interface ActivityIssueRepo {
+  name: string;
+  url: string;
+  openCount: number;
+  closedCount: number;
+}
 
-  switch (e.type) {
-    case "PushEvent": {
-      const commits = (p.commits as { message: string }[]) || [];
-      return {
-        type: "push",
-        repo,
-        time,
-        url: repoUrl,
-        description: `Pushed ${commits.length} commit${commits.length === 1 ? "" : "s"}`,
-        detail: commits[0]?.message || "",
-      };
-    }
-    case "PullRequestEvent": {
-      const pr = p.pull_request as { number: number; title: string; html_url: string } | undefined;
-      return {
-        type: "pr",
-        repo,
-        time,
-        url: pr?.html_url || repoUrl,
-        description: `${capitalize(String(p.action))} pull request #${pr?.number}`,
-        detail: pr?.title || "",
-      };
-    }
-    case "IssuesEvent": {
-      const issue = p.issue as { number: number; title: string; html_url: string } | undefined;
-      return {
-        type: "issue",
-        repo,
-        time,
-        url: issue?.html_url || repoUrl,
-        description: `${capitalize(String(p.action))} issue #${issue?.number}`,
-        detail: issue?.title || "",
-      };
-    }
-    case "CreateEvent": {
-      const refPart = p.ref ? " " + (p.ref as string) : "";
-      return {
-        type: "create",
-        repo,
-        time,
-        url: repoUrl,
-        description: `Created ${String(p.ref_type)}${refPart}`,
-        detail: "",
-      };
-    }
-    case "ForkEvent":
-      return {
-        type: "fork",
-        repo,
-        time,
-        url: (p.forkee as { html_url: string })?.html_url || repoUrl,
-        description: `Forked to ${(p.forkee as { full_name: string })?.full_name}`,
-        detail: "",
-      };
-    case "IssueCommentEvent": {
-      const issue = p.issue as { number: number; html_url: string } | undefined;
-      return {
-        type: "comment",
-        repo,
-        time,
-        url: issue?.html_url || repoUrl,
-        description: `Commented on #${issue?.number}`,
-        detail: ((p.comment as { body: string })?.body || "").slice(0, 100),
-      };
-    }
-    case "ReleaseEvent": {
-      const release = p.release as { tag_name: string; html_url: string } | undefined;
-      return {
-        type: "release",
-        repo,
-        time,
-        url: release?.html_url || repoUrl,
-        description: `${capitalize(String(p.action))} release ${release?.tag_name}`,
-        detail: "",
-      };
-    }
-    case "DeleteEvent":
-      return {
-        type: "delete",
-        repo,
-        time,
-        url: repoUrl,
-        description: `Deleted ${String(p.ref_type)} ${p.ref as string}`,
-        detail: "",
-      };
-    default:
-      return {
-        type: e.type.replace("Event", "").toLowerCase(),
-        repo,
-        time,
-        url: repoUrl,
-        description: e.type.replace("Event", ""),
-        detail: "",
-      };
+interface FeaturedActivity {
+  title: string;
+  url: string;
+  repo: string;
+  repoUrl: string;
+  body?: string;
+  number?: number;
+}
+
+interface ActivityGroup {
+  type: string;
+  summary: string;
+  summaryLink?: { text: string; url: string };
+  date: string;
+  count: number;
+  repoCount: number;
+  featured?: FeaturedActivity;
+  repos?: ActivityRepo[];
+  issueRepos?: ActivityIssueRepo[];
+}
+
+interface ActivityPeriod {
+  period: string;
+  groups: ActivityGroup[];
+}
+
+function pushToGroup(e: GitHubEvent): ActivityGroup {
+  const commits = (e.payload.commits as { sha?: string }[]) ?? [];
+  const ref = typeof e.payload.ref === "string" ? e.payload.ref : "";
+  const branch = ref.replace("refs/heads/", "");
+  const n = commits.length;
+  const repoUrl = `https://github.com/${e.repo.name}`;
+  let linkUrl = repoUrl;
+  if (n > 1) {
+    const before = typeof e.payload.before === "string" ? e.payload.before : "";
+    const head = typeof e.payload.head === "string" ? e.payload.head : "";
+    if (before && head) linkUrl = `${repoUrl}/compare/${before}...${head}`;
+  } else if (n === 1 && commits[0]?.sha) {
+    linkUrl = `${repoUrl}/commit/${commits[0].sha}`;
   }
-}
-
-interface ActivityCounts {
-  commits: number;
-  pullRequests: number;
-  issues: number;
-  codeReviews: number;
-}
-
-function accumulateEventCounts(
-  type: string,
-  payload: GitHubEvent["payload"],
-  counts: ActivityCounts,
-) {
-  switch (type) {
-    case "PushEvent":
-      counts.commits += (payload.commits as unknown[])?.length || 1;
-      break;
-    case "PullRequestEvent":
-      counts.pullRequests++;
-      break;
-    case "PullRequestReviewEvent":
-    case "PullRequestReviewCommentEvent":
-    case "IssueCommentEvent":
-      counts.codeReviews++;
-      break;
-    case "IssuesEvent":
-      counts.issues++;
-      break;
-    default:
-      break;
-  }
-}
-
-function buildActivityOverview(events: GitHubEvent[], username: string) {
-  const counts: ActivityCounts = { commits: 0, pullRequests: 0, issues: 0, codeReviews: 0 };
-  const repoMap = new Map<string, number>();
-  const orgSet = new Set<string>();
-
-  for (const e of events) {
-    const repo = e.repo.name;
-    repoMap.set(repo, (repoMap.get(repo) ?? 0) + 1);
-
-    const owner = repo.split("/")[0];
-    if (owner && owner.toLowerCase() !== username.toLowerCase()) {
-      orgSet.add(owner);
-    }
-
-    accumulateEventCounts(e.type, e.payload, counts);
-  }
-
-  const { commits, pullRequests, issues, codeReviews } = counts;
-
-  const total = commits + pullRequests + issues + codeReviews;
-  const pct = (v: number) => (total > 0 ? Math.round((v / total) * 100) : 0);
-
-  const contributedRepos = [...repoMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([nameWithOwner, count]) => ({
-      nameWithOwner,
-      url: `https://github.com/${nameWithOwner}`,
-      count,
-    }));
-
-  const remainingRepoCount = Math.max(0, repoMap.size - 5);
-
+  const label = branch ? `${e.repo.name}/${branch}` : e.repo.name;
+  const count = n > 0 ? n : 1;
+  const noun = count === 1 ? "commit" : "commits";
+  const verb = n === 0 ? "Pushed to" : `Pushed ${count} ${noun} to`;
   return {
-    activityOverview: {
-      commits: pct(commits),
-      pullRequests: pct(pullRequests),
-      issues: pct(issues),
-      codeReviews: pct(codeReviews),
-    },
-    contributedRepos,
-    contributedOrgs: [...orgSet],
-    remainingRepoCount,
+    type: "commits",
+    summary: verb,
+    summaryLink: { text: label, url: linkUrl },
+    date: e.created_at,
+    count,
+    repoCount: 1,
   };
 }
 
-type UserRepo = { full_name: string; fork: boolean; owner: { login: string; type: string } };
+function prToGroup(e: GitHubEvent): ActivityGroup {
+  const pr = e.payload.pull_request as { number?: number; title?: string; merged?: boolean } | undefined;
+  const num = (e.payload.number as number | undefined) ?? pr?.number;
+  const merged = pr?.merged === true;
+  const action = typeof e.payload.action === "string" ? e.payload.action : "";
+  const repoUrl = `https://github.com/${e.repo.name}`;
+  const url = num ? `${repoUrl}/pull/${num}` : repoUrl;
+  const featured: FeaturedActivity = {
+    title: pr?.title ?? `Pull request #${num}`,
+    url,
+    repo: e.repo.name,
+    repoUrl,
+    number: num,
+  };
+  if (action === "opened") {
+    return { type: "featured-pr", summary: "Created a pull request in", summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1, featured };
+  }
+  if (action === "closed" && merged) {
+    return { type: "merged-pr", summary: "Merged a pull request in", summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1, featured };
+  }
+  return { type: "closed-pr", summary: "Closed a pull request in", summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1, featured };
+}
+
+function reviewToGroup(e: GitHubEvent): ActivityGroup {
+  const pr = e.payload.pull_request as { number?: number; title?: string } | undefined;
+  const num = pr?.number;
+  const repoUrl = `https://github.com/${e.repo.name}`;
+  const url = num ? `${repoUrl}/pull/${num}` : repoUrl;
+  const featured: FeaturedActivity = { title: pr?.title ?? `Pull request #${num}`, url, repo: e.repo.name, repoUrl, number: num };
+  return { type: "reviewed-prs", summary: "Reviewed a pull request in", summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1, featured };
+}
+
+function issueToGroup(e: GitHubEvent): ActivityGroup {
+  const issue = e.payload.issue as { number?: number; title?: string; body?: string; html_url?: string } | undefined;
+  const num = issue?.number;
+  const repoUrl = `https://github.com/${e.repo.name}`;
+  const url = issue?.html_url ?? (num ? `${repoUrl}/issues/${num}` : repoUrl);
+  const featured: FeaturedActivity = {
+    title: issue?.title ?? `Issue #${num}`,
+    url,
+    repo: e.repo.name,
+    repoUrl,
+    body: (issue?.body ?? "").slice(0, 200),
+    number: num,
+  };
+  const action = typeof e.payload.action === "string" ? e.payload.action : "";
+  if (action === "opened") {
+    return { type: "featured-issue", summary: "Created an issue in", summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1, featured };
+  }
+  return { type: "closed-issue", summary: "Closed an issue in", summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1, featured };
+}
+
+function createToGroup(e: GitHubEvent): ActivityGroup {
+  const refType = typeof e.payload.ref_type === "string" ? e.payload.ref_type : "";
+  const ref = typeof e.payload.ref === "string" ? e.payload.ref : "";
+  const repoUrl = `https://github.com/${e.repo.name}`;
+  if (refType === "repository") {
+    return { type: "created-repos", summary: "Created repository", summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1 };
+  }
+  const label = ref ? `${ref} in` : `${refType} in`;
+  const type = refType === "tag" ? "created-tag" : "created-branch";
+  return { type, summary: `Created ${label}`, summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1 };
+}
+
+function simpleGroup(e: GitHubEvent, type: string, summary: string): ActivityGroup {
+  const repoUrl = `https://github.com/${e.repo.name}`;
+  return { type, summary, summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1 };
+}
+
+function issueCommentToGroup(e: GitHubEvent): ActivityGroup {
+  const issue = e.payload.issue as { number?: number; title?: string; html_url?: string } | undefined;
+  const comment = e.payload.comment as { html_url?: string } | undefined;
+  const num = issue?.number;
+  const repoUrl = `https://github.com/${e.repo.name}`;
+  const issueUrl = issue?.html_url ?? (num ? `${repoUrl}/issues/${num}` : repoUrl);
+  const featured: FeaturedActivity = {
+    title: issue?.title ?? `Issue #${num}`,
+    url: comment?.html_url ?? issueUrl,
+    repo: e.repo.name,
+    repoUrl,
+    number: num,
+  };
+  return { type: "comment", summary: "Commented on an issue in", summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1, featured };
+}
+
+function commitCommentToGroup(e: GitHubEvent): ActivityGroup {
+  const comment = e.payload.comment as { html_url?: string; commit_id?: string } | undefined;
+  const repoUrl = `https://github.com/${e.repo.name}`;
+  const commitId = comment?.commit_id ?? "";
+  const commitUrl = commitId ? `${repoUrl}/commit/${commitId}` : repoUrl;
+  const featured: FeaturedActivity = {
+    title: commitId ? `Commit ${commitId.slice(0, 7)}` : "Commit comment",
+    url: comment?.html_url ?? commitUrl,
+    repo: e.repo.name,
+    repoUrl,
+  };
+  return { type: "commit-comment", summary: "Commented on a commit in", summaryLink: { text: e.repo.name, url: repoUrl }, date: e.created_at, count: 1, repoCount: 1, featured };
+}
+
+function eventToActivityGroup(e: GitHubEvent): ActivityGroup | null {
+  switch (e.type) {
+    case "PushEvent": return pushToGroup(e);
+    case "PullRequestEvent": return prToGroup(e);
+    case "PullRequestReviewEvent": return reviewToGroup(e);
+    case "IssuesEvent": return issueToGroup(e);
+    case "IssueCommentEvent": return issueCommentToGroup(e);
+    case "CommitCommentEvent": return commitCommentToGroup(e);
+    case "CreateEvent": return createToGroup(e);
+    case "DeleteEvent": {
+      const refType = typeof e.payload.ref_type === "string" ? e.payload.ref_type : "branch";
+      return simpleGroup(e, "delete", `Deleted a ${refType} in`);
+    }
+    case "ForkEvent": return simpleGroup(e, "fork", "Forked");
+    case "ReleaseEvent": {
+      const rel = e.payload.release as { tag_name?: string; html_url?: string } | undefined;
+      const tag = rel?.tag_name ?? "";
+      const url = rel?.html_url ?? `https://github.com/${e.repo.name}/releases`;
+      const summary = tag ? `Released ${tag} in` : "Published a release in";
+      return { type: "release", summary, summaryLink: { text: e.repo.name, url }, date: e.created_at, count: 1, repoCount: 1 };
+    }
+    case "GollumEvent": return simpleGroup(e, "wiki", "Updated wiki in");
+    case "MemberEvent": return simpleGroup(e, "member", "Added a member to");
+    case "DiscussionEvent": return simpleGroup(e, "discussions", "Started a discussion in");
+    default: return null;
+  }
+}
+
+function buildActivityPeriods(events: GitHubEvent[]): ActivityPeriod[] {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  const monthMap = new Map<string, ActivityGroup[]>();
+  for (const e of events) {
+    if (e.type === "WatchEvent" || e.created_at.slice(0, 10) < cutoffStr) continue;
+    const group = eventToActivityGroup(e);
+    if (!group) continue;
+    const month = e.created_at.slice(0, 7);
+    const arr = monthMap.get(month) ?? [];
+    arr.push(group);
+    monthMap.set(month, arr);
+  }
+  return [...monthMap.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([key, groups]) => ({
+      period: new Date(key + "-01T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+      groups,
+    }));
+}
 
 function buildYearOverview(days: ReturnType<typeof parseContributionDays>) {
   const dowCounts = [0, 0, 0, 0, 0, 0, 0];
@@ -211,36 +241,6 @@ function buildYearOverview(days: ReturnType<typeof parseContributionDays>) {
   return { commits, pullRequests, issues, codeReviews: 100 - commits - pullRequests - issues };
 }
 
-function mergeRepoData(
-  activity: ReturnType<typeof buildActivityOverview>,
-  userRepos: UserRepo[],
-  username: string,
-) {
-  const lc = username.toLowerCase();
-  const allOrgs = new Set(activity.contributedOrgs);
-  for (const repo of userRepos) {
-    if (repo.owner.type === "Organization" && repo.owner.login.toLowerCase() !== lc) {
-      allOrgs.add(repo.owner.login);
-    }
-  }
-  const repoMap = new Map(activity.contributedRepos.map((r) => [r.nameWithOwner, r]));
-  for (const repo of userRepos) {
-    if (!repoMap.has(repo.full_name) && repo.owner.login.toLowerCase() !== lc) {
-      repoMap.set(repo.full_name, {
-        nameWithOwner: repo.full_name,
-        url: `https://github.com/${repo.full_name}`,
-        count: 1,
-      });
-    }
-  }
-  const contributedRepos = [...repoMap.values()].sort((a, b) => b.count - a.count).slice(0, 5);
-  return {
-    contributedOrgs: [...allOrgs],
-    contributedRepos,
-    remainingRepoCount: Math.max(0, repoMap.size - 5),
-  };
-}
-
 const UA = "contribution-graph/1.0";
 
 export const githubRoute = new Hono().get("/:username", async (c) => {
@@ -253,18 +253,16 @@ export const githubRoute = new Hono().get("/:username", async (c) => {
 
   try {
     const contribUrl = year
-      ? `https://github.com/users/${username}/contributions?to=${year}-12-31`
+      ? `https://github.com/users/${username}/contributions?from=${year}-01-01&to=${year}-12-31`
       : `https://github.com/users/${username}/contributions`;
 
     const ghApiHeaders = { "User-Agent": UA, Accept: "application/vnd.github.v3+json" };
+    const htmlHeaders = { "User-Agent": UA, Accept: "text/html" };
 
-    const [contribRes, profileRes, eventsRes, reposRes] = await Promise.all([
-      fetch(contribUrl, { headers: { "User-Agent": UA, Accept: "text/html" } }),
+    const [contribRes, profileRes, eventsRes] = await Promise.all([
+      fetch(contribUrl, { headers: htmlHeaders }),
       fetch(`https://api.github.com/users/${username}`, { headers: ghApiHeaders }),
-      fetch(`https://api.github.com/users/${username}/events/public?per_page=30`, {
-        headers: ghApiHeaders,
-      }),
-      fetch(`https://api.github.com/users/${username}/repos?per_page=100&sort=pushed&type=all`, {
+      fetch(`https://api.github.com/users/${username}/events/public?per_page=100`, {
         headers: ghApiHeaders,
       }),
     ]);
@@ -281,16 +279,16 @@ export const githubRoute = new Hono().get("/:username", async (c) => {
     const contribHtml = contribRes.ok ? await contribRes.text() : "";
     const profile: GitHubProfile = await profileRes.json();
     const events: GitHubEvent[] = eventsRes.ok ? await eventsRes.json() : [];
-    const userRepos: {
-      full_name: string;
-      fork: boolean;
-      owner: { login: string; type: string };
-    }[] = reposRes.ok ? await reposRes.json() : [];
 
     const days = parseContributionDays(contribHtml);
-    const activity = buildActivityOverview(events, username);
-    const merged = mergeRepoData(activity, userRepos, username);
+    const contributed = parseContributedSection(contribHtml);
     const yearOverview = buildYearOverview(days);
+
+    const contributedRepos = contributed.repos.map((full_name) => ({
+      nameWithOwner: full_name,
+      url: `https://github.com/${full_name}`,
+      count: 1,
+    }));
 
     return c.json({
       profile: {
@@ -313,13 +311,10 @@ export const githubRoute = new Hono().get("/:username", async (c) => {
         days,
       },
       activityOverview: yearOverview,
-      contributedRepos: merged.contributedRepos,
-      contributedOrgs: merged.contributedOrgs,
-      remainingRepoCount: merged.remainingRepoCount,
-      events: events
-        .filter((ev) => ev.type !== "WatchEvent")
-        .slice(0, 20)
-        .map(formatEvent),
+      contributedRepos,
+      contributedOrgs: contributed.orgs,
+      remainingRepoCount: contributed.othersCount,
+      activityPeriods: buildActivityPeriods(events),
       availableYears: availableYears(profile.created_at),
     });
   } catch (error) {

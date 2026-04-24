@@ -56,6 +56,40 @@ export function buildWeeks(days: ContributionDay[]) {
     .map(([, contributionDays]) => ({ contributionDays }));
 }
 
+export function parseContributedSection(html: string): {
+  repos: string[];
+  orgs: string[];
+  othersCount: number;
+} {
+  const orgs: string[] = [];
+  const orgRegex = /org=([a-zA-Z0-9][a-zA-Z0-9._-]*)&/g;
+  const seenOrgs = new Set<string>();
+  let om;
+  while ((om = orgRegex.exec(html)) !== null) {
+    const org = om[1];
+    if (!seenOrgs.has(org)) {
+      seenOrgs.add(org);
+      orgs.push(org);
+    }
+  }
+
+  const repos: string[] = [];
+  const idx = html.indexOf("Contributed to");
+  if (idx === -1) return { repos, orgs, othersCount: 0 };
+  const section = html.slice(idx, idx + 4000);
+
+  const repoRegex = /data-hovercard-type="repository"[^>]*>([^<]+)<\/a>/g;
+  let rm;
+  while ((rm = repoRegex.exec(section)) !== null) {
+    repos.push(rm[1].trim());
+  }
+
+  const othersMatch = /and (\d+) other/.exec(section);
+  const othersCount = othersMatch ? Number.parseInt(othersMatch[1], 10) : 0;
+
+  return { repos, orgs, othersCount };
+}
+
 export function buildMonths(days: ContributionDay[]) {
   const names = [
     "Jan",

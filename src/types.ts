@@ -35,15 +35,6 @@ export interface Profile {
   createdAt: string;
 }
 
-export interface FormattedEvent {
-  type: string;
-  repo: string;
-  time: string;
-  url: string;
-  description: string;
-  detail: string;
-}
-
 export interface YearOption {
   label: string;
   from: string;
@@ -63,6 +54,45 @@ export interface ContributedRepo {
   count: number;
 }
 
+export interface ActivityRepo {
+  name: string;
+  url: string;
+  date: string;
+}
+
+export interface ActivityIssueRepo {
+  name: string;
+  url: string;
+  openCount: number;
+  closedCount: number;
+}
+
+export interface FeaturedActivity {
+  title: string;
+  url: string;
+  repo: string;
+  repoUrl: string;
+  body?: string;
+  number?: number;
+}
+
+export interface ActivityGroup {
+  type: string;
+  summary: string;
+  summaryLink?: { text: string; url: string };
+  date: string;
+  count: number;
+  repoCount: number;
+  featured?: FeaturedActivity;
+  repos?: ActivityRepo[];
+  issueRepos?: ActivityIssueRepo[];
+}
+
+export interface ActivityPeriod {
+  period: string;
+  groups: ActivityGroup[];
+}
+
 export interface GitHubData {
   profile: Profile;
   contributions: Contributions;
@@ -70,6 +100,6 @@ export interface GitHubData {
   contributedRepos: ContributedRepo[];
   contributedOrgs: string[];
   remainingRepoCount: number;
-  events: FormattedEvent[];
+  activityPeriods: ActivityPeriod[];
   availableYears: YearOption[];
 }

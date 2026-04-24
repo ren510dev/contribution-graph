@@ -4,7 +4,7 @@ import SearchInput from "./components/SearchInput";
 import ProfileCard from "./components/ProfileCard";
 import ContributionGraph from "./components/ContributionGraph";
 import ActivityOverview from "./components/ActivityOverview";
-import EventTimeline from "./components/EventTimeline";
+import ContributionActivity from "./components/ContributionActivity";
 import EmbedBuilder from "./components/EmbedBuilder";
 import LoadingSkeleton from "./components/LoadingSkeleton";
 
@@ -44,7 +44,7 @@ export default function App() {
                   contributedRepos: json.contributedRepos,
                   contributedOrgs: json.contributedOrgs,
                   remainingRepoCount: json.remainingRepoCount,
-                  events: json.events,
+                  activityPeriods: json.activityPeriods,
                 }
               : json,
           );
@@ -197,8 +197,8 @@ export default function App() {
 
             <section className="animate-fade-in-up animate-delay-200 mt-10">
               <div className="rounded-2xl border border-bordeaux-200/50 bg-white p-5 shadow-sm sm:p-6">
-                <h3 className="mb-4 text-sm font-semibold text-bordeaux-950">Recent Activity</h3>
-                <EventTimeline events={data.events} />
+                <h3 className="mb-4 text-sm font-semibold text-bordeaux-950">Contribution activity</h3>
+                <ContributionActivity activityPeriods={data.activityPeriods} />
               </div>
             </section>
 
