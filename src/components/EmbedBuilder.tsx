@@ -217,10 +217,10 @@ export default function EmbedBuilder({ username }: Readonly<Props>) {
             </a>
           </div>
           <div
-            className="overflow-x-auto p-6 [-webkit-overflow-scrolling:touch]"
+            className="overflow-x-auto [-webkit-overflow-scrolling:touch]"
             style={{ backgroundColor: selectedTheme.bg + "22", minHeight: 160 }}
           >
-            <div className="flex min-h-25 items-center justify-center">
+            <div className="flex min-h-25 items-center justify-center p-6" style={{ width: "max-content", minWidth: "100%" }}>
               <img
                 src={svgUrl}
                 alt={`${graphType} graph for ${username}`}
