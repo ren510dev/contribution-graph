@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Contributions } from "../types";
 
 function getLevel(count: number): number {
@@ -20,6 +20,21 @@ export default function ContributionGraph({ data, loading }: Readonly<Props>) {
     x: number;
     y: number;
   } | null>(null);
+
+  // Measure the actual rendered SVG width so we can compute the scale factor
+  // and decide which month labels have enough pixel-space to show without overlapping.
+  const svgContainerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = svgContainerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver((entries) => {
+      setContainerWidth(entries[0].contentRect.width);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const handleCellHover = useCallback(
     (e: React.MouseEvent, day: { date: string; count: number }) => {
@@ -43,38 +58,53 @@ export default function ContributionGraph({ data, loading }: Readonly<Props>) {
   const visibleDays = new Set([1, 3, 5]);
   const labelWidth = 36;
   const monthLabelY = 12;
-  const gridTopY = monthLabelY + 12;
+  const gridTopY = monthLabelY + 14;
   const totalWidth = labelWidth + data.weeks.length * step + 8;
   const totalHeight = gridTopY + step * 7 + 4;
+
+  // Scale factor: how many SVG units map to 1 screen pixel.
+  // Use totalWidth as fallback before the first ResizeObserver measurement.
+  const scale = containerWidth === null ? 1 : containerWidth / totalWidth;
+  // Minimum gap in screen pixels between the start of adjacent month labels.
+  // A 3-char label at font-size 11 is roughly 22px wide in SVG units.
+  // We want at least 26 screen-pixels of clear space before the next label starts.
+  const MIN_LABEL_PX = 26;
+  const minGapSvg = MIN_LABEL_PX / scale;
+
+  let lastMonthX = -minGapSvg;
+  const monthLabelNodes = data.months.map((month) => {
+    const weekIndex = data.weeks.findIndex((w) =>
+      w.contributionDays.some((d) => d.date === month.firstDay),
+    );
+    if (weekIndex < 0) return null;
+    const x = labelWidth + weekIndex * step;
+    if (x - lastMonthX < minGapSvg) return null;
+    lastMonthX = x;
+    return (
+      <text
+        key={month.firstDay}
+        x={x}
+        y={monthLabelY}
+        fill="#7a1b3d"
+        fontSize={svgFont}
+        fontFamily="Inter, system-ui, sans-serif"
+        fontWeight="500"
+      >
+        {month.name}
+      </text>
+    );
+  });
 
   return (
     <div
       className={`contrib-graph relative transition-opacity duration-300 ${loading ? "opacity-40" : ""}`}
     >
       <div className="overflow-x-auto [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
-        <div className="flex min-w-183.5 items-stretch">
-          <div className="shrink-0 px-1" />
-          <div className="flex-1">
+        <div className="flex items-stretch" style={{ minWidth: totalWidth }}>
+          <div className="w-2 shrink-0" />
+          <div className="flex-1" ref={svgContainerRef}>
             <svg viewBox={`0 0 ${totalWidth} ${totalHeight}`} className="block w-full">
-              {data.months.map((month) => {
-                const weekIndex = data.weeks.findIndex((w) =>
-                  w.contributionDays.some((d) => d.date === month.firstDay),
-                );
-                if (weekIndex < 0) return null;
-                return (
-                  <text
-                    key={month.firstDay}
-                    x={labelWidth + weekIndex * step}
-                    y={monthLabelY}
-                    fill="#7a1b3d"
-                    fontSize={svgFont}
-                    fontFamily="Inter, system-ui, sans-serif"
-                    fontWeight="500"
-                  >
-                    {month.name}
-                  </text>
-                );
-              })}
+              {monthLabelNodes}
 
               {dayLabels.map((label, i) =>
                 visibleDays.has(i) ? (
@@ -116,7 +146,7 @@ export default function ContributionGraph({ data, loading }: Readonly<Props>) {
               )}
             </svg>
           </div>
-          <div className="w-4.25 shrink-0" />
+          <div className="w-2 shrink-0" />
         </div>
       </div>
 
