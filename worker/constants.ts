@@ -9,7 +9,7 @@ export const EVENTS_PER_PAGE = 100;
 export const ACTIVITY_CUTOFF_DAYS = 30;
 export const RECENT_DAYS = 31;
 
-export const API_CACHE_MAX_AGE = 300;
+export const API_CACHE_MAX_AGE = 3600;
 export const SVG_CACHE_MAX_AGE = 3600;
 
 export const MONTH_NAMES = [
