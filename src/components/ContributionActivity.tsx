@@ -1,26 +1,25 @@
 import { useState } from "react";
-import type {
-  ActivityGroup,
-  ActivityPeriod,
-  ActivityRepo,
-  ActivityIssueRepo,
-  FeaturedActivity,
-} from "../types";
-
-import commitsSvg from "../assets/icons/commits.svg?raw";
 import bookSvg from "../assets/icons/book.svg?raw";
 import branchSvg from "../assets/icons/branch.svg?raw";
-import tagSvg from "../assets/icons/tag.svg?raw";
+import chevronDownSvg from "../assets/icons/chevron-down.svg?raw";
+import chevronUpSvg from "../assets/icons/chevron-up.svg?raw";
+import commentSvg from "../assets/icons/comment.svg?raw";
+import commitsSvg from "../assets/icons/commits.svg?raw";
+import discussionsSvg from "../assets/icons/discussions.svg?raw";
+import forkSvg from "../assets/icons/fork.svg?raw";
+import issueSvg from "../assets/icons/issue.svg?raw";
+import personSvg from "../assets/icons/person.svg?raw";
 import prSvg from "../assets/icons/pr.svg?raw";
 import reviewSvg from "../assets/icons/review.svg?raw";
-import issueSvg from "../assets/icons/issue.svg?raw";
-import commentSvg from "../assets/icons/comment.svg?raw";
-import forkSvg from "../assets/icons/fork.svg?raw";
+import tagSvg from "../assets/icons/tag.svg?raw";
 import trashSvg from "../assets/icons/trash.svg?raw";
-import personSvg from "../assets/icons/person.svg?raw";
-import discussionsSvg from "../assets/icons/discussions.svg?raw";
-import chevronUpSvg from "../assets/icons/chevron-up.svg?raw";
-import chevronDownSvg from "../assets/icons/chevron-down.svg?raw";
+import type {
+  ActivityGroup,
+  ActivityIssueRepo,
+  ActivityPeriod,
+  ActivityRepo,
+  FeaturedActivity,
+} from "../types";
 
 const GROUP_ICONS: Record<string, { svg: string; color: string }> = {
   commits: { svg: commitsSvg, color: "#57606a" },
@@ -58,6 +57,7 @@ function SvgIcon({
     <span
       className={className}
       style={{ color, display: "block" }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: raw comes from SVG assets bundled at build time
       dangerouslySetInnerHTML={{ __html: raw }}
     />
   );
@@ -180,6 +180,7 @@ function GroupRow({ group }: Readonly<{ group: ActivityGroup }>) {
             <span className="text-xs text-[#57606a]">{formatShortDate(group.date)}</span>
             {canExpand && (
               <button
+                type="button"
                 onClick={() => setExpanded((v) => !v)}
                 className="flex h-5 w-5 items-center justify-center rounded text-[#57606a] hover:bg-gray-100 hover:text-[#24292f]"
                 aria-label={expanded ? "Collapse" : "Expand"}
@@ -213,6 +214,7 @@ function PeriodSection({ period }: Readonly<{ period: ActivityPeriod }>) {
         <div className="absolute bottom-0 left-3.75 top-0 w-px bg-[#d0d7de]" />
         <div className="space-y-0.5">
           {period.groups.map((group, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: groups can repeat type+date, so the index disambiguates
             <GroupRow key={`${group.type}-${group.date}-${i}`} group={group} />
           ))}
         </div>

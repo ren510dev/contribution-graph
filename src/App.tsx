@@ -1,14 +1,14 @@
-import { useState, useCallback } from "react";
-import type { GitHubData, YearOption } from "./types";
+import { useCallback, useState } from "react";
 import logoSvg from "./assets/logo.svg";
 import logoHeroSvg from "./assets/logo-hero.svg";
-import SearchInput from "./components/SearchInput";
-import ProfileCard from "./components/ProfileCard";
-import ContributionGraph from "./components/ContributionGraph";
 import ActivityOverview from "./components/ActivityOverview";
 import ContributionActivity from "./components/ContributionActivity";
+import ContributionGraph from "./components/ContributionGraph";
 import EmbedBuilder from "./components/EmbedBuilder";
 import LoadingSkeleton from "./components/LoadingSkeleton";
+import ProfileCard from "./components/ProfileCard";
+import SearchInput from "./components/SearchInput";
+import type { GitHubData, YearOption } from "./types";
 
 const year = new Date().getFullYear();
 

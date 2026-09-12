@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 
 interface Props {
   onSearch: (username: string) => void;
@@ -22,6 +22,7 @@ export default function SearchInput({ onSearch, loading, compact }: Readonly<Pro
     return (
       <form onSubmit={handleSubmit} className="relative">
         <svg
+          aria-hidden="true"
           className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-bordeaux-700/50"
           fill="none"
           stroke="currentColor"
@@ -50,6 +51,7 @@ export default function SearchInput({ onSearch, loading, compact }: Readonly<Pro
     <form onSubmit={handleSubmit} className="mx-auto w-full max-w-xl">
       <div className="relative">
         <svg
+          aria-hidden="true"
           className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-bordeaux-700/50"
           fill="none"
           stroke="currentColor"
@@ -68,6 +70,7 @@ export default function SearchInput({ onSearch, loading, compact }: Readonly<Pro
           onChange={(e) => setValue(e.target.value)}
           placeholder="Enter a GitHub username..."
           disabled={loading}
+          // biome-ignore lint/a11y/noAutofocus: the search field is the sole purpose of this page
           autoFocus
           className="search-shimmer w-full rounded-2xl border-2 border-bordeaux-200/50 bg-white py-4 pl-14 pr-32 text-lg text-bordeaux-950 placeholder-bordeaux-700/40 shadow-lg shadow-bordeaux-950/5 transition-all focus:border-bordeaux-300 focus:shadow-xl focus:shadow-bordeaux-950/8 focus:outline-none disabled:opacity-50"
         />
@@ -78,7 +81,12 @@ export default function SearchInput({ onSearch, loading, compact }: Readonly<Pro
         >
           {loading ? (
             <span className="flex items-center gap-2">
-              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
                 <circle
                   className="opacity-25"
                   cx="12"

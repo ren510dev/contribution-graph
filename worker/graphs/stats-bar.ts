@@ -12,7 +12,7 @@ export function renderStatsBarSvg(
   const dowCounts = [0, 0, 0, 0, 0, 0, 0];
   const dowLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   for (const day of sorted) {
-    const wd = new Date(day.date + "T00:00:00").getDay();
+    const wd = new Date(`${day.date}T00:00:00`).getDay();
     dowCounts[wd] += day.count;
   }
   const maxDow = Math.max(...dowCounts, 1);

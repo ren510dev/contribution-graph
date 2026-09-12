@@ -1,6 +1,6 @@
-import { cached, NotFoundError, type CacheResult } from "./kv-cache";
-import { GH_API_HEADERS, GITHUB_API_BASE, EVENTS_PER_PAGE } from "./constants";
-import type { GitHubProfile, GitHubEvent, GitHubRepo } from "./types";
+import { EVENTS_PER_PAGE, GH_API_HEADERS, GITHUB_API_BASE } from "./constants";
+import { type CacheResult, cached, NotFoundError } from "./kv-cache";
+import type { GitHubEvent, GitHubProfile, GitHubRepo } from "./types";
 
 async function loadJson<T>(url: string): Promise<T | null> {
   let res: Response;

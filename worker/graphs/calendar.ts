@@ -1,6 +1,6 @@
+import { MONTH_NAMES } from "../constants";
 import type { GraphTheme } from "./themes";
 import type { ContributionWeek } from "./types";
-import { MONTH_NAMES } from "../constants";
 
 export function renderCalendarSvg(
   weeks: ContributionWeek[],
@@ -28,7 +28,7 @@ export function renderCalendarSvg(
   const seen = new Set<string>();
   weeks.forEach((week, wi) => {
     for (const day of week.contributionDays) {
-      const d = new Date(day.date + "T00:00:00");
+      const d = new Date(`${day.date}T00:00:00`);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -43,7 +43,7 @@ export function renderCalendarSvg(
     .map((week, wi) =>
       week.contributionDays
         .map((day) => {
-          const wd = day.weekday ?? new Date(day.date + "T00:00:00").getDay();
+          const wd = day.weekday ?? new Date(`${day.date}T00:00:00`).getDay();
           return `<rect x="${ox + labelWidth + wi * step}" y="${gridTopY + wd * step}" width="${cellSize}" height="${cellSize}" rx="2" fill="${theme.levels[day.level] || theme.levels[0]}"><title>${day.count} contributions on ${day.date}</title></rect>`;
         })
         .join(""),

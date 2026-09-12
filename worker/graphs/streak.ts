@@ -1,6 +1,6 @@
+import { MONTH_NAMES } from "../constants";
 import type { GraphTheme } from "./themes";
 import type { ContributionDay } from "./types";
-import { MONTH_NAMES } from "../constants";
 
 function computeStreaks(days: ContributionDay[]) {
   const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
@@ -15,7 +15,7 @@ function computeStreaks(days: ContributionDay[]) {
   const today = new Date().toISOString().slice(0, 10);
   const dayMap = new Map(sorted.map((d) => [d.date, d.count]));
 
-  const d = new Date(today + "T00:00:00");
+  const d = new Date(`${today}T00:00:00`);
   while (true) {
     const key = d.toISOString().slice(0, 10);
     const count = dayMap.get(key);
@@ -56,7 +56,7 @@ function computeStreaks(days: ContributionDay[]) {
 
 function formatDateShort(dateStr: string): string {
   if (!dateStr) return "-";
-  const d = new Date(dateStr + "T00:00:00");
+  const d = new Date(`${dateStr}T00:00:00`);
   return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
 }
 
