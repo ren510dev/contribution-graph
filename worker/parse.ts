@@ -21,8 +21,8 @@ export function parseContributionDays(html: string): ContributionDay[] {
     /<td[^>]*?data-date="(\d{4}-\d{2}-\d{2})"[^>]*?data-level="(\d)"[^>]*?>[\s\S]*?<\/td>/g;
   const countRegex = /(\d+)\s+contribution/;
 
-  let match;
-  while ((match = cellRegex.exec(html)) !== null) {
+  let match = cellRegex.exec(html);
+  while (match !== null) {
     const date = match[1];
     const level = Number.parseInt(match[2], 10);
     const cellHtml = match[0];
@@ -31,6 +31,7 @@ export function parseContributionDays(html: string): ContributionDay[] {
     const count = countMatch ? Number.parseInt(countMatch[1], 10) : (LEVEL_COUNT[level] ?? 0);
 
     days.push({ date, count, level });
+    match = cellRegex.exec(html);
   }
   return days;
 }
@@ -44,7 +45,7 @@ export function buildWeeks(days: ContributionDay[]): { contributionDays: Contrib
   const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
   const weekMap = new Map<string, ContributionDay[]>();
   for (const day of sorted) {
-    const d = new Date(day.date + "T00:00:00");
+    const d = new Date(`${day.date}T00:00:00`);
     const wd = d.getDay();
     const sun = new Date(d);
     sun.setDate(sun.getDate() - wd);
@@ -66,13 +67,14 @@ export function parseContributedSection(html: string): {
   const orgs: string[] = [];
   const orgRegex = /org=([a-zA-Z0-9][a-zA-Z0-9._-]*)&/g;
   const seenOrgs = new Set<string>();
-  let om;
-  while ((om = orgRegex.exec(html)) !== null) {
+  let om = orgRegex.exec(html);
+  while (om !== null) {
     const org = om[1];
     if (!seenOrgs.has(org)) {
       seenOrgs.add(org);
       orgs.push(org);
     }
+    om = orgRegex.exec(html);
   }
 
   const repos: string[] = [];
@@ -81,9 +83,10 @@ export function parseContributedSection(html: string): {
   const section = html.slice(idx, idx + 4000);
 
   const repoRegex = /data-hovercard-type="repository"[^>]*>([^<]+)<\/a>/g;
-  let rm;
-  while ((rm = repoRegex.exec(section)) !== null) {
+  let rm = repoRegex.exec(section);
+  while (rm !== null) {
     repos.push(rm[1].trim());
+    rm = repoRegex.exec(section);
   }
 
   const othersMatch = /and (\d+) other/.exec(section);
@@ -96,7 +99,7 @@ export function buildMonths(days: ContributionDay[]): { name: string; firstDay: 
   const seen = new Set<string>();
   const months: { name: string; firstDay: string }[] = [];
   for (const day of days) {
-    const d = new Date(day.date + "T00:00:00");
+    const d = new Date(`${day.date}T00:00:00`);
     const key = `${d.getFullYear()}-${d.getMonth()}`;
     if (!seen.has(key)) {
       seen.add(key);

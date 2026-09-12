@@ -1,6 +1,6 @@
+import { RECENT_DAYS } from "../constants";
 import type { GraphTheme } from "./themes";
 import type { ContributionDay } from "./types";
-import { RECENT_DAYS } from "../constants";
 
 function splinePath(pts: { x: number; y: number }[]): string {
   if (pts.length < 2) return "";
@@ -46,14 +46,14 @@ export function renderActivityLineSvg(
   const maxCount = Math.max(...recent.map((d) => d.count), 1);
 
   const rawStep = maxCount / 9;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
   const niceStep =
     [1, 2, 5, 10].map((f) => f * magnitude).find((s) => s >= rawStep) ?? magnitude * 10;
   const yMax = niceStep * Math.ceil(maxCount / niceStep);
   const ySteps = Math.round(yMax / niceStep);
 
   const pts = recent.map((d, i) => {
-    const dateObj = new Date(d.date + "T00:00:00");
+    const dateObj = new Date(`${d.date}T00:00:00`);
     return {
       x: chartLeft + (n > 1 ? i / (n - 1) : 0.5) * chartW,
       y: chartBottom - (d.count / yMax) * chartH,

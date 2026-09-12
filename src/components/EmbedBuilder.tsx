@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const PRODUCTION_DOMAIN = "contribution-graph.ren510.dev";
 
@@ -69,6 +69,7 @@ export default function EmbedBuilder({ username }: Readonly<Props>) {
 
   const svgUrl = `${baseUrl}/graph/${username}/${graphType}.svg?theme=${themeId}`;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: imgKey is a refetch token, not read inside the effect
   useEffect(() => {
     setSvgContent("");
     setSvgMaxWidth(840);
@@ -132,6 +133,7 @@ export default function EmbedBuilder({ username }: Readonly<Props>) {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
             {GRAPH_TYPES.map((g) => (
               <button
+                type="button"
                 key={g.id}
                 onClick={() => {
                   setGraphType(g.id);
@@ -151,6 +153,7 @@ export default function EmbedBuilder({ username }: Readonly<Props>) {
                   }`}
                 >
                   <svg
+                    aria-hidden="true"
                     className="h-5 w-5"
                     fill="none"
                     stroke="currentColor"
@@ -182,6 +185,7 @@ export default function EmbedBuilder({ username }: Readonly<Props>) {
           <div className="flex flex-wrap gap-2">
             {THEMES.map((t) => (
               <button
+                type="button"
                 key={t.id}
                 onClick={() => {
                   setThemeId(t.id);
@@ -240,11 +244,12 @@ export default function EmbedBuilder({ username }: Readonly<Props>) {
             </a>
           </div>
           <div
-            style={{ backgroundColor: selectedTheme.bg + "22" }}
+            style={{ backgroundColor: `${selectedTheme.bg}22` }}
             className="overflow-x-auto p-4 sm:p-6 sm:flex sm:items-center sm:justify-center sm:min-h-52"
           >
             {svgContent ? (
               <div
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG is generated and served by this app
                 dangerouslySetInnerHTML={{ __html: svgContent }}
                 className="embed-svg-wrapper"
                 style={{ "--svg-orig-width": `${svgMaxWidth}px` } as React.CSSProperties}
@@ -274,6 +279,7 @@ export default function EmbedBuilder({ username }: Readonly<Props>) {
                 </code>
               </div>
               <button
+                type="button"
                 onClick={() => handleCopy(row.value, row.key)}
                 className={`shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
                   copied === row.key

@@ -27,7 +27,12 @@ function ActivityChart({ data }: Readonly<{ data: ActivityOverview }>) {
   const pointsStr = polyPoints.map(([x, y]) => `${x},${y}`).join(" ");
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="mx-auto block w-full max-w-95">
+    <svg
+      role="img"
+      aria-label="Activity overview"
+      viewBox={`0 0 ${w} ${h}`}
+      className="mx-auto block w-full max-w-95"
+    >
       <polygon points={pointsStr} fill="rgba(212,61,96,0.40)" stroke="none" />
 
       <line x1={cx} y1={cy - maxR} x2={cx} y2={cy + maxR} stroke="#d43d60" strokeWidth="2" />
@@ -194,6 +199,7 @@ export default function ActivityOverviewSection({
           </p>
           <div className="flex items-start gap-2" style={{ fontSize: LABEL_FONT }}>
             <svg
+              aria-hidden="true"
               width="18"
               height="18"
               viewBox="0 0 16 16"

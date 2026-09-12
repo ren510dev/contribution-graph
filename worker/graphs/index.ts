@@ -1,17 +1,17 @@
 import { Hono } from "hono";
-import { getTheme, themes } from "./themes";
-import { renderCalendarSvg } from "./calendar";
-import { renderActivityLineSvg } from "./activity-line";
-import { renderStatsBarSvg } from "./stats-bar";
-import { renderCompactBarSvg } from "./compact-bar";
-import { renderStreakSvg } from "./streak";
-import { renderHeatmapRingSvg } from "./heatmap-ring";
-import { renderLanguagesSvg, aggregateLanguages } from "./languages";
-import { renderProfileCardSvg } from "./profile-card";
-import { parseContributionDays, parseTotalContributions, buildWeeks } from "../parse";
-import type { Bindings, GitHubProfile, GitHubRepo } from "../types";
+import { GH_HTML_HEADERS, GITHUB_BASE, SVG_CACHE_MAX_AGE, USERNAME_REGEX } from "../constants";
 import { cachedProfile, cachedRepos } from "../gh-api";
-import { GITHUB_BASE, GH_HTML_HEADERS, USERNAME_REGEX, SVG_CACHE_MAX_AGE } from "../constants";
+import { buildWeeks, parseContributionDays, parseTotalContributions } from "../parse";
+import type { Bindings, GitHubProfile, GitHubRepo } from "../types";
+import { renderActivityLineSvg } from "./activity-line";
+import { renderCalendarSvg } from "./calendar";
+import { renderCompactBarSvg } from "./compact-bar";
+import { renderHeatmapRingSvg } from "./heatmap-ring";
+import { aggregateLanguages, renderLanguagesSvg } from "./languages";
+import { renderProfileCardSvg } from "./profile-card";
+import { renderStatsBarSvg } from "./stats-bar";
+import { renderStreakSvg } from "./streak";
+import { getTheme, themes } from "./themes";
 
 async function fetchContributions(username: string, year?: string) {
   const url = year

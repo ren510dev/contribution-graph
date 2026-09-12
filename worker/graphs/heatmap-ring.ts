@@ -1,6 +1,6 @@
+import { MONTH_NAMES } from "../constants";
 import type { GraphTheme } from "./themes";
 import type { ContributionDay } from "./types";
-import { MONTH_NAMES } from "../constants";
 
 interface WeekBucket {
   count: number;
@@ -27,7 +27,7 @@ export function renderHeatmapRingSvg(
   let weekCount = 0;
   for (let i = 0; i < sorted.length; i++) {
     weekCount += sorted[i].count;
-    const wd = new Date(sorted[i].date + "T00:00:00").getDay();
+    const wd = new Date(`${sorted[i].date}T00:00:00`).getDay();
     if (wd === 6 || i === sorted.length - 1) {
       weeks.push({ count: weekCount, level: 0 });
       weekCount = 0;
@@ -77,7 +77,7 @@ export function renderHeatmapRingSvg(
       const firstDay = sorted[dayIdx];
       dayIdx += weekDayCount;
       if (!firstDay) return "";
-      const d = new Date(firstDay.date + "T00:00:00");
+      const d = new Date(`${firstDay.date}T00:00:00`);
       const monthKey = d.getMonth();
       if (seenMonths.has(monthKey)) return "";
       seenMonths.add(monthKey);

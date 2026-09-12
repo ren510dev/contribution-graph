@@ -40,7 +40,7 @@ export default function ContributionGraph({ data, loading }: Readonly<Props>) {
       const parentRect =
         (e.currentTarget as SVGElement).closest(".contrib-graph")?.getBoundingClientRect() ?? rect;
       setTooltip({
-        text: `${day.count} contribution${day.count === 1 ? "" : "s"} on ${new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+        text: `${day.count} contribution${day.count === 1 ? "" : "s"} on ${new Date(`${day.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
         x: rect.left - parentRect.left + rect.width / 2,
         y: rect.top - parentRect.top - 8,
       });
@@ -96,7 +96,12 @@ export default function ContributionGraph({ data, loading }: Readonly<Props>) {
         <div className="flex items-stretch" style={{ minWidth: totalWidth }}>
           <div className="w-2 shrink-0" />
           <div className="flex-1" ref={svgContainerRef}>
-            <svg viewBox={`0 0 ${totalWidth} ${totalHeight}`} className="block w-full">
+            <svg
+              role="img"
+              aria-label="Contribution graph"
+              viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+              className="block w-full"
+            >
               {monthLabelNodes}
 
               {dayLabels.map((label, i) =>
@@ -118,9 +123,10 @@ export default function ContributionGraph({ data, loading }: Readonly<Props>) {
 
               {data.weeks.map((week, wi) =>
                 week.contributionDays.map((day) => {
-                  const weekday = day.weekday ?? new Date(day.date + "T00:00:00").getDay();
+                  const weekday = day.weekday ?? new Date(`${day.date}T00:00:00`).getDay();
                   const level = day.level ?? getLevel(day.count);
                   return (
+                    // biome-ignore lint/a11y/noStaticElementInteractions: hover-only tooltip; the parent svg carries the accessible name
                     <rect
                       key={day.date}
                       x={labelWidth + wi * step}

@@ -1,15 +1,15 @@
 import { Hono } from "hono";
+import { ACTIVITY_CUTOFF_DAYS, GH_HTML_HEADERS, GITHUB_BASE, USERNAME_REGEX } from "./constants";
+import { cachedEvents, cachedProfile } from "./gh-api";
+import { NotFoundError } from "./kv-cache";
 import {
+  buildMonths,
+  buildWeeks,
+  parseContributedSection,
   parseContributionDays,
   parseTotalContributions,
-  buildWeeks,
-  buildMonths,
-  parseContributedSection,
 } from "./parse";
 import type { Bindings, GitHubEvent } from "./types";
-import { cachedProfile, cachedEvents } from "./gh-api";
-import { NotFoundError } from "./kv-cache";
-import { GITHUB_BASE, GH_HTML_HEADERS, USERNAME_REGEX, ACTIVITY_CUTOFF_DAYS } from "./constants";
 
 function availableYears(createdAt: string) {
   const cur = new Date().getFullYear();
@@ -348,7 +348,7 @@ function buildActivityPeriods(events: GitHubEvent[]): ActivityPeriod[] {
   return [...monthMap.entries()]
     .sort((a, b) => b[0].localeCompare(a[0]))
     .map(([key, groups]) => ({
-      period: new Date(key + "-01T00:00:00").toLocaleDateString("en-US", {
+      period: new Date(`${key}-01T00:00:00`).toLocaleDateString("en-US", {
         month: "long",
         year: "numeric",
       }),
@@ -359,7 +359,7 @@ function buildActivityPeriods(events: GitHubEvent[]): ActivityPeriod[] {
 function buildYearOverview(days: ReturnType<typeof parseContributionDays>) {
   const dowCounts = [0, 0, 0, 0, 0, 0, 0];
   for (const day of days) {
-    dowCounts[new Date(day.date + "T00:00:00").getDay()] += day.count;
+    dowCounts[new Date(`${day.date}T00:00:00`).getDay()] += day.count;
   }
   const weekdayTotal = dowCounts[1] + dowCounts[2] + dowCounts[3] + dowCounts[4] + dowCounts[5];
   const total = weekdayTotal + dowCounts[0] + dowCounts[6] || 1;

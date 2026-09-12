@@ -1,6 +1,6 @@
+import { MONTH_NAMES } from "../constants";
 import type { GraphTheme } from "./themes";
 import type { ContributionDay } from "./types";
-import { MONTH_NAMES } from "../constants";
 
 export function renderCompactBarSvg(
   days: ContributionDay[],
@@ -15,7 +15,7 @@ export function renderCompactBarSvg(
   let weekCount = 0;
 
   for (const day of sorted) {
-    const d = new Date(day.date + "T00:00:00");
+    const d = new Date(`${day.date}T00:00:00`);
     if (d.getDay() === 0 && weekCount > 0) {
       weeklyData.push({ label: weekStart, count: weekCount });
       weekCount = 0;
@@ -42,7 +42,7 @@ export function renderCompactBarSvg(
   let lastLabelX = -MIN_LABEL_GAP;
   const monthLabels = weeklyData
     .map((week, i) => {
-      const d = new Date(week.label + "T00:00:00");
+      const d = new Date(`${week.label}T00:00:00`);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       if (seenMonths.has(key)) return "";
       seenMonths.add(key);

@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { cache } from "hono/cache";
+import { API_CACHE_MAX_AGE } from "./constants";
 import { githubRoute } from "./github";
 import { graphRoute } from "./graphs/index";
-import { API_CACHE_MAX_AGE } from "./constants";
 import type { Bindings } from "./types";
 
 const app = new Hono<{ Bindings: Bindings }>();

@@ -1,5 +1,5 @@
-import type { GraphTheme } from "./themes";
 import type { LangStat } from "./languages";
+import type { GraphTheme } from "./themes";
 
 interface ProfileData {
   login: string;
@@ -32,7 +32,7 @@ export function renderProfileCardSvg(profile: ProfileData, theme: GraphTheme): s
       if (!last || last.length + 1 + word.length > MAX_CHARS) {
         bioLines.push(word);
       } else {
-        bioLines[bioLines.length - 1] = last + " " + word;
+        bioLines[bioLines.length - 1] = `${last} ${word}`;
       }
     }
   }
@@ -68,7 +68,7 @@ export function renderProfileCardSvg(profile: ProfileData, theme: GraphTheme): s
   const langDots = topLangs
     .map((l, i) => {
       const x = pad + i * langColW;
-      const name = l.name.length > 10 ? l.name.slice(0, 9) + "…" : l.name;
+      const name = l.name.length > 10 ? `${l.name.slice(0, 9)}…` : l.name;
       return `<circle cx="${x + 5}" cy="${langY}" r="4" fill="${l.color}"/>
       <text x="${x + 14}" y="${langY + 1}" fill="${theme.subtext}" font-size="10" font-family="Inter,system-ui,sans-serif" dominant-baseline="central">${name}</text>`;
     })
