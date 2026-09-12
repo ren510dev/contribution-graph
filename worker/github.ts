@@ -6,15 +6,10 @@ import {
   buildMonths,
   parseContributedSection,
 } from "./parse";
-import type { GitHubProfile, GitHubEvent } from "./types";
-import {
-  UA,
-  GITHUB_BASE,
-  GITHUB_API_BASE,
-  USERNAME_REGEX,
-  EVENTS_PER_PAGE,
-  ACTIVITY_CUTOFF_DAYS,
-} from "./constants";
+import type { Bindings, GitHubEvent } from "./types";
+import { cachedProfile, cachedEvents } from "./gh-api";
+import { NotFoundError } from "./kv-cache";
+import { GITHUB_BASE, GH_HTML_HEADERS, USERNAME_REGEX, ACTIVITY_CUTOFF_DAYS } from "./constants";
 
 function availableYears(createdAt: string) {
   const cur = new Date().getFullYear();
@@ -374,7 +369,7 @@ function buildYearOverview(days: ReturnType<typeof parseContributionDays>) {
   return { commits, pullRequests, issues, codeReviews: 100 - commits - pullRequests - issues };
 }
 
-export const githubRoute = new Hono().get("/:username", async (c) => {
+export const githubRoute = new Hono<{ Bindings: Bindings }>().get("/:username", async (c) => {
   const username = c.req.param("username");
   const year = c.req.query("year");
 
@@ -387,29 +382,26 @@ export const githubRoute = new Hono().get("/:username", async (c) => {
       ? `${GITHUB_BASE}/users/${username}/contributions?from=${year}-01-01&to=${year}-12-31`
       : `${GITHUB_BASE}/users/${username}/contributions`;
 
-    const ghApiHeaders = { "User-Agent": UA, Accept: "application/vnd.github.v3+json" };
-    const htmlHeaders = { "User-Agent": UA, Accept: "text/html" };
-
-    const [contribRes, profileRes, eventsRes] = await Promise.all([
-      fetch(contribUrl, { headers: htmlHeaders }),
-      fetch(`${GITHUB_API_BASE}/users/${username}`, { headers: ghApiHeaders }),
-      fetch(`${GITHUB_API_BASE}/users/${username}/events/public?per_page=${EVENTS_PER_PAGE}`, {
-        headers: ghApiHeaders,
-      }),
+    const [contribRes, profileResult, eventsResult] = await Promise.all([
+      fetch(contribUrl, { headers: GH_HTML_HEADERS }),
+      cachedProfile(c.env.CACHE, username),
+      cachedEvents(c.env.CACHE, username),
     ]);
 
-    if (!profileRes.ok) {
-      let error = `GitHub API error: ${profileRes.status}`;
-      if (profileRes.status === 404) error = "User not found";
-      if (profileRes.status === 403)
-        error = "GitHub API rate limit exceeded. Please wait a moment and try again.";
-      const status = profileRes.status === 404 ? 404 : 502;
-      return c.json({ error }, status);
+    const profile = profileResult.data;
+    if (!profile) {
+      return c.json(
+        { error: "GitHub API rate limit exceeded. Please wait a moment and try again." },
+        502,
+      );
     }
 
     const contribHtml = contribRes.ok ? await contribRes.text() : "";
-    const profile: GitHubProfile = await profileRes.json();
-    const events: GitHubEvent[] = eventsRes.ok ? await eventsRes.json() : [];
+    const events = eventsResult.data ?? [];
+
+    if (profileResult.stale || eventsResult.stale) {
+      c.header("X-Data-Stale", "1");
+    }
 
     const days = parseContributionDays(contribHtml);
     const contributed = parseContributedSection(contribHtml);
@@ -449,6 +441,9 @@ export const githubRoute = new Hono().get("/:username", async (c) => {
       availableYears: availableYears(profile.created_at),
     });
   } catch (error) {
+    if (error instanceof NotFoundError) {
+      return c.json({ error: "User not found" }, 404);
+    }
     return c.json({ error: "Failed to fetch GitHub data", detail: String(error) }, 500);
   }
 });

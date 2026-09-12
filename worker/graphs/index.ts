@@ -9,24 +9,16 @@ import { renderHeatmapRingSvg } from "./heatmap-ring";
 import { renderLanguagesSvg, aggregateLanguages } from "./languages";
 import { renderProfileCardSvg } from "./profile-card";
 import { parseContributionDays, parseTotalContributions, buildWeeks } from "../parse";
-import type { GitHubProfile, GitHubRepo } from "../types";
-import {
-  UA,
-  GITHUB_BASE,
-  GITHUB_API_BASE,
-  USERNAME_REGEX,
-  EVENTS_PER_PAGE,
-  SVG_CACHE_MAX_AGE,
-} from "../constants";
+import type { Bindings, GitHubProfile, GitHubRepo } from "../types";
+import { cachedProfile, cachedRepos } from "../gh-api";
+import { GITHUB_BASE, GH_HTML_HEADERS, USERNAME_REGEX, SVG_CACHE_MAX_AGE } from "../constants";
 
 async function fetchContributions(username: string, year?: string) {
   const url = year
     ? `${GITHUB_BASE}/users/${username}/contributions?to=${year}-12-31`
     : `${GITHUB_BASE}/users/${username}/contributions`;
 
-  const res = await fetch(url, {
-    headers: { "User-Agent": UA, Accept: "text/html" },
-  });
+  const res = await fetch(url, { headers: GH_HTML_HEADERS });
   if (!res.ok) return null;
 
   const html = await res.text();
@@ -36,21 +28,23 @@ async function fetchContributions(username: string, year?: string) {
   return { days, total, weeks };
 }
 
-async function fetchProfile(username: string): Promise<GitHubProfile | null> {
-  const res = await fetch(`${GITHUB_API_BASE}/users/${username}`, {
-    headers: { "User-Agent": UA, Accept: "application/vnd.github.v3+json" },
-  });
-  if (!res.ok) return null;
-  return res.json() as Promise<GitHubProfile>;
+async function fetchProfile(
+  kv: KVNamespace | undefined,
+  username: string,
+): Promise<GitHubProfile | null> {
+  try {
+    return (await cachedProfile(kv, username)).data;
+  } catch {
+    return null;
+  }
 }
 
-async function fetchRepos(username: string): Promise<GitHubRepo[]> {
-  const res = await fetch(
-    `${GITHUB_API_BASE}/users/${username}/repos?per_page=${EVENTS_PER_PAGE}&sort=pushed`,
-    { headers: { "User-Agent": UA, Accept: "application/vnd.github.v3+json" } },
-  );
-  if (!res.ok) return [];
-  return res.json() as Promise<GitHubRepo[]>;
+async function fetchRepos(kv: KVNamespace | undefined, username: string): Promise<GitHubRepo[]> {
+  try {
+    return (await cachedRepos(kv, username)).data ?? [];
+  } catch {
+    return [];
+  }
 }
 
 const GRAPH_TYPES = [
@@ -77,7 +71,7 @@ const SVG_HEADERS = {
   "Cache-Control": `public, max-age=${SVG_CACHE_MAX_AGE}`,
 };
 
-export const graphRoute = new Hono()
+export const graphRoute = new Hono<{ Bindings: Bindings }>()
   .get("/themes", (c) => {
     return c.json(
       Object.values(themes).map((t) => ({
@@ -110,8 +104,8 @@ export const graphRoute = new Hono()
 
     const [data, repos, profile] = await Promise.all([
       fetchContributions(username, year || undefined),
-      NEEDS_REPOS.has(graphType) ? fetchRepos(username) : Promise.resolve([]),
-      NEEDS_PROFILE.has(graphType) ? fetchProfile(username) : Promise.resolve(null),
+      NEEDS_REPOS.has(graphType) ? fetchRepos(c.env.CACHE, username) : Promise.resolve([]),
+      NEEDS_PROFILE.has(graphType) ? fetchProfile(c.env.CACHE, username) : Promise.resolve(null),
     ]);
 
     if (!data && graphType !== "languages" && graphType !== "profile-card") {
