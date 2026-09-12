@@ -1,3 +1,8 @@
+export interface Bindings {
+  IS_DEV?: string;
+  CACHE?: KVNamespace;
+}
+
 export interface GitHubProfile {
   login: string;
   name: string | null;
